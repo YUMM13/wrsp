@@ -1,5 +1,5 @@
 import typer
-from db_client import WikipediaDB
+from .db_client import WikipediaDB
 
 app = typer.Typer()
 

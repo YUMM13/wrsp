@@ -1,0 +1,17 @@
+[project]
+name = "wrsp"
+version = "1.0.0"
+description = "Find the shortest distance to get to one Wikipedia article to another."
+authors = [{ name = "Blake Stambaugh", email = "blakestambaugh1@gmail.com" }]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+dependencies = ["typer[all]", "neo4j"]
+
+# This tells Python to install a console command named `wrsp`
+[project.scripts]
+wrsp = "wrsp.cli:app"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
