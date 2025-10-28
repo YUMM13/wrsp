@@ -7,7 +7,7 @@ load_dotenv()
 
 URI = os.getenv("URI")
 CREDENTIALS = (os.getenv("DB_USERNAME"), os.getenv("DB_PASSWORD"))
-MAX_DEPTH = 10
+MAX_DEPTH = 7
 BATCH_SIZE = 50
 
 class WikipediaDB:
@@ -17,6 +17,7 @@ class WikipediaDB:
     def close(self):
         self.driver.close()
 
+    # test function used for debugging
     def test(self):
         batch = ["Minecraft", "Calculus", "Xbox_360"]
         query = """MATCH (p:Page) WHERE p.title IN $batch
@@ -26,17 +27,8 @@ class WikipediaDB:
         with self.driver.session() as session:
             res = session.run(query, batch=batch)
             return res.data()[0]["neighbors"]
-    
-    # def findShortestBuiltIn(self, start_page, end_page, depth):
-    #     query = """
-    #         MATCH p=(a:Page {title:$start})-[*..$depth]->(b:Page {title:$end})
-    #         RETURN [n IN nodes(p) | n.title] AS titles"""
-    #     with self.driver.session() as session:
-    #         res = session.run(query, start=start_page, end=end_page, depth=depth)
-    #         return res.single()
         
-
-# halo_(franchise), gordon_freeman, Exponential_decay, Bateman_equation
+    # finds shortest route between two wikipedia articles
     def findShortestRoute(self, start, end):
         # get start and end page name
         start_title = start.split('/')[-1]
@@ -60,17 +52,15 @@ class WikipediaDB:
         # set up bfs
         visited = set()
         queue = deque([start_title])
-        # key = child, value = parent
-        parent = {}
-        depth = {start_title: 0}
+        parent = {}                         # key = child, value = parent
+        depth = {start_title: 0}            # key = page,  value = number of clicks away from start page
         batch_titles = []
 
         # go through queue
         while queue:
-            # curr = queue.popleft()
+            # fill batch process
             while queue and len(batch_titles) < BATCH_SIZE:
                 batch_titles.append(queue.popleft())
-            # print(f'processing {batch_titles}')
             print(f"Current Depth = {depth[batch_titles[0]]}")
             # if we find the end, then break out and reconstruct the path
             if end_title in parent:
@@ -80,6 +70,7 @@ class WikipediaDB:
                 MATCH (p)-[:LINKS_TO]->(out) 
                 WHERE NOT (out:Metadata)
                 RETURN p.title AS parent, collect(out.title) AS neighbors"""
+            # iterate through neighbors
             with self.driver.session() as session:
                 res = session.run(query, batch=batch_titles)
                 batch_result = res.data()
