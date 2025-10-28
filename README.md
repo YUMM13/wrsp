@@ -8,6 +8,7 @@ The project automates the process by using a graph search algorithm to find the 
 I utilized a graph database (Neo4j) to model Wikipedia:
 - Nodes are pages
 - Edges represent outlinks to other pages
+
 Instead of building my own database, I used a premade Neo4j database from [EPFL](https://lts2.epfl.ch/Datasets/Wikipedia/) since it had pages and outlinks. 
 However, this dump had 2 main issues. 
 1. **Outdated Format**
