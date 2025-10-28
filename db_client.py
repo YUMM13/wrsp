@@ -7,6 +7,8 @@ load_dotenv()
 
 URI = os.getenv("URI")
 CREDENTIALS = (os.getenv("DB_USERNAME"), os.getenv("DB_PASSWORD"))
+MAX_DEPTH = 10
+BATCH_SIZE = 50
 
 class WikipediaDB:
     def __init__(self):
@@ -16,10 +18,14 @@ class WikipediaDB:
         self.driver.close()
 
     def test(self):
-        query = """MATCH (p:Page{title:"Minecraft"})-[:LINKS_TO]->(out:Page) RETURN [n IN nodes(out) | n.title] as neighbors"""
+        batch = ["Minecraft", "Calculus", "Xbox_360"]
+        query = """MATCH (p:Page) WHERE p.title IN $batch
+                MATCH (p)-[:LINKS_TO]->(out) 
+                WHERE NOT (out:Metadata)
+                RETURN p.title AS parent, collect(out.title) AS neighbors"""
         with self.driver.session() as session:
-            res = session.run(query)
-            return res.data()
+            res = session.run(query, batch=batch)
+            return res.data()[0]["neighbors"]
     
     # def findShortestBuiltIn(self, start_page, end_page, depth):
     #     query = """
@@ -56,26 +62,39 @@ class WikipediaDB:
         queue = deque([start_title])
         # key = child, value = parent
         parent = {}
-        
+        depth = {start_title: 0}
+        batch_titles = []
+
         # go through queue
         while queue:
-            curr = queue.popleft()
-            print(f'processing {curr}')
+            # curr = queue.popleft()
+            while queue and len(batch_titles) < BATCH_SIZE:
+                batch_titles.append(queue.popleft())
+            # print(f'processing {batch_titles}')
+            print(f"Current Depth = {depth[batch_titles[0]]}")
             # if we find the end, then break out and reconstruct the path
-            if curr == end_title:
+            if end_title in parent:
                 break
-            visited.add(curr)
             # get neighbors
-            query = """MATCH (p:Page{title:$curr})-[:LINKS_TO]->(out:Page) 
-                WHERE NOT out.title =~ '^(Articles_|Wikipedia_|NPOV_disputes_|Use_mdy_dates_|Use_dmy_dates_|Use_American_English).*'
-                RETURN collect(out.title) AS neighbors"""
+            query = """MATCH (p:Page) WHERE p.title IN $batch
+                MATCH (p)-[:LINKS_TO]->(out) 
+                WHERE NOT (out:Metadata)
+                RETURN p.title AS parent, collect(out.title) AS neighbors"""
             with self.driver.session() as session:
-                res = session.run(query, curr=curr)
-                neighbors = res.single().values()[0]
-                for page in neighbors:
-                    if page not in visited:
-                        parent[page] = curr
-                        queue.append(page)
+                res = session.run(query, batch=batch_titles)
+                batch_result = res.data()
+                for r in batch_result:
+                    par, neighbors = r["parent"], r["neighbors"]
+                    # track depth to limit scope
+                    curr_depth = depth[par]
+                    for page in neighbors:
+                        if page not in visited and curr_depth <= MAX_DEPTH:
+                            visited.add(page)
+                            if page not in parent:
+                                parent[page] = par
+                            depth[page] = curr_depth + 1
+                            queue.append(page)
+            batch_titles.clear()
             
         # remake path
         path = [end_title]
@@ -85,4 +104,4 @@ class WikipediaDB:
             path.append(p)
             curr_page = p
         # reverse path
-        return path[::-1]
+        return f"SHORTEST PATH: {path[::-1]}"
