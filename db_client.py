@@ -16,17 +16,6 @@ class WikipediaDB:
 
     def close(self):
         self.driver.close()
-
-    # test function used for debugging
-    def test(self):
-        batch = ["Minecraft", "Calculus", "Xbox_360"]
-        query = """MATCH (p:Page) WHERE p.title IN $batch
-                MATCH (p)-[:LINKS_TO]->(out) 
-                WHERE NOT (out:Metadata)
-                RETURN p.title AS parent, collect(out.title) AS neighbors"""
-        with self.driver.session() as session:
-            res = session.run(query, batch=batch)
-            return res.data()[0]["neighbors"]
         
     # finds shortest route between two wikipedia articles
     def findShortestRoute(self, start, end):
